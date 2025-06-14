@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🍬 糖果消消乐</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #ffebf3;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            color: #ff6b9d;
+            margin-bottom: 10px;
+        }
+        h2 {
+            color: #ff6b9d;
+            margin-top: 0;
+        }
+        #game-board {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 5px;
+            max-width: 400px;
+            margin: 20px auto;
+            background-color: #fff;
+            padding: 10px;
+            border-radius: 15px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+        }
+        .candy {
+            font-size: 24px;
+            cursor: pointer;
+            aspect-ratio: 1/1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #fff;
+            border-radius: 12px;
+            transition: all 0.3s;
+            overflow: hidden;
+            padding: 5px;
+            box-sizing: border-box;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .candy:hover {
+            transform: scale(1.1);
+            z-index: 1;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        #score {
+            font-size: 24px;
+            color: #ff6b9d;
+            margin: 10px;
+            font-weight: bold;
+        }
+        #time {
+            font-size: 24px;
+            color: #ff6b9d;
+            margin: 10px;
+            font-weight: bold;
+        }
+        #controls {
+            margin: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+        button {
+            background-color: #ff6b9d;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+            transition: all 0.3s;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+            min-width: 120px;
+        }
+        button:hover {
+            background-color: #ff4785;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 10px rgba(0,0,0,0.2);
+        }
+        button:active {
+            transform: translateY(1px);
+        }
+        .match {
+            animation: matchAnimation 0.4s ease-out;
+        }
+        @keyframes matchAnimation {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0.8; }
+            100% { transform: scale(0); opacity: 0; }
+        }
+        .fall {
+            animation: fallAnimation 0.5s ease-in;
+        }
+        @keyframes fallAnimation {
+            0% { transform: translateY(-100%); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+        #mode-selection {
+            margin: 20px auto;
+            max-width: 400px;
+            background-color: #fff;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+        }
+        .hidden {
+            display: none;
+        }
+        .timer-low {
+            color: #ff0000;
+            animation: pulse 0.8s infinite alternate;
+        }
+        @keyframes pulse {
+            from { transform: scale(1); }
+            to { transform: scale(1.1); }
+        }
+        /* 毛玻璃效果按钮 */
+        .glass-button {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        .glass-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, 
+                rgba(255,255,255,0.1) 0%, 
+                rgba(255,255,255,0.3) 50%, 
+                rgba(255,255,255,0.1) 100%);
+            z-index: -1;
+        }
+        /* 粉色毛玻璃按钮 */
+        .pink-glass {
+            background: rgba(255, 107, 157, 0.7);
+        }
+        /* 蓝色毛玻璃按钮 */
+        .blue-glass {
+            background: rgba(107, 157, 255, 0.7);
+        }
+        #home-button, #home-button-bottom {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+    </style>
+</head>
+<body>
+    <h1>🍬 糖果消消乐 🍭</h1>
+    
+    <div id="mode-selection">
+        <h2>选择游戏模式</h2>
+        <button id="timed-mode" class="glass-button pink-glass">3分钟</button>
+        <button id="unlimited-mode" class="glass-button pink-glass">不限时</button>
+        <button id="home-button" class="glass-button blue-glass hidden">主页</button>
+    </div>
+    
+    <div id="game-container" class="hidden">
+        <div id="score">分数: 0</div>
+        <div id="time" class="hidden">剩余时间: 3:00</div>
+        <div id="game-board"></div>
+        <div id="controls">
+            <button id="restart" class="glass-button pink-glass">重置</button>
+            <button id="back-to-mode" class="glass-button pink-glass">模式</button>
+        </div>
+        <button id="home-button-bottom" class="glass-button blue-glass hidden">主页</button>
+    </div>
+
+    <script>
+        const candies = ['🍬', '🍭', '🍫', '🍩', '🍪', '🧁', '🍰', '🎂'];
+        const boardSize = 8;
+        let board = [];
+        let selected = null;
+        let score = 0;
+        let timer = null;
+        let timeLeft = 180;
+        let isTimedMode = false;
+        
+        document.querySelectorAll('#home-button, #home-button-bottom').forEach(btn => {
+            btn.classList.remove('hidden');
+        });
+        
+        document.getElementById('timed-mode').addEventListener('click', () => {
+            startGame(true);
+        });
+        
+        document.getElementById('unlimited-mode').addEventListener('click', () => {
+            startGame(false);
+        });
+        
+        document.querySelectorAll('#home-button, #home-button-bottom').forEach(btn => {
+            btn.addEventListener('click', () => {
+                window.location.href = '/';
+            });
+        });
+        
+        document.getElementById('back-to-mode').addEventListener('click', backToModeSelection);
+        
+        function backToModeSelection() {
+            clearInterval(timer);
+            document.getElementById('game-container').classList.add('hidden');
+            document.getElementById('mode-selection').classList.remove('hidden');
+            document.getElementById('time').classList.remove('timer-low');
+        }
+        
+        function startGame(timed) {
+            isTimedMode = timed;
+            document.getElementById('mode-selection').classList.add('hidden');
+            document.getElementById('game-container').classList.remove('hidden');
+            
+            if (timed) {
+                document.getElementById('time').classList.remove('hidden');
+                startTimer();
+            } else {
+                document.getElementById('time').classList.add('hidden');
+            }
+            
+            initializeBoard();
+        }
+        
+        function startTimer() {
+            timeLeft = 180;
+            updateTimerDisplay();
+            
+            if (timer) {
+                clearInterval(timer);
+            }
+            
+            timer = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+                
+                if (timeLeft <= 10) {
+                    document.getElementById('time').classList.add('timer-low');
+                }
+                
+                if (timeLeft <= 0) {
+                    clearInterval(timer);
+                    setTimeout(() => {
+                        alert(`时间到！你的最终得分是: ${score}`);
+                        document.getElementById('time').classList.remove('timer-low');
+                    }, 300);
+                }
+            }, 1000);
+        }
+        
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            document.getElementById('time').textContent = 
+                `剩余时间: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+        }
+        
+        function initializeBoard() {
+            const gameBoard = document.getElementById('game-board');
+            gameBoard.innerHTML = '';
+            board = [];
+            score = 0;
+            updateScore();
+            
+            for (let row = 0; row < boardSize; row++) {
+                board[row] = [];
+                for (let col = 0; col < boardSize; col++) {
+                    board[row][col] = getRandomCandy();
+                }
+            }
+            
+            while (checkMatches()) {
+                for (let row = 0; row < boardSize; row++) {
+                    for (let col = 0; col < boardSize; col++) {
+                        board[row][col] = getRandomCandy();
+                    }
+                }
+            }
+            
+            renderBoard();
+        }
+        
+        function renderBoard() {
+            const gameBoard = document.getElementById('game-board');
+            gameBoard.innerHTML = '';
+            
+            for (let row = 0; row < boardSize; row++) {
+                for (let col = 0; col < boardSize; col++) {
+                    const candyElement = document.createElement('div');
+                    candyElement.className = 'candy';
+                    candyElement.textContent = board[row][col];
+                    candyElement.dataset.row = row;
+                    candyElement.dataset.col = col;
+                    candyElement.addEventListener('click', handleCandyClick);
+                    
+                    gameBoard.appendChild(candyElement);
+                }
+            }
+        }
+        
+        function getRandomCandy() {
+            return candies[Math.floor(Math.random() * candies.length)];
+        }
+        
+        function handleCandyClick(event) {
+            if (isTimedMode && timeLeft <= 0) return;
+            
+            const row = parseInt(event.target.dataset.row);
+            const col = parseInt(event.target.dataset.col);
+            
+            if (!selected) {
+                selected = { row, col };
+                event.target.style.backgroundColor = '#ffd6e7';
+            } else {
+                const rowDiff = Math.abs(selected.row - row);
+                const colDiff = Math.abs(selected.col - col);
+                
+                if ((rowDiff === 1 && colDiff === 0) || (colDiff === 1 && rowDiff === 0)) {
+                    swapCandies(selected.row, selected.col, row, col);
+                    
+                    if (!checkMatches()) {
+                        setTimeout(() => {
+                            swapCandies(selected.row, selected.col, row, col);
+                        }, 300);
+                    } else {
+                        setTimeout(() => {
+                            removeMatches();
+                            fillBoard();
+                        }, 300);
+                    }
+                }
+                
+                document.querySelector(`.candy[data-row="${selected.row}"][data-col="${selected.col}"]`).style.backgroundColor = '#fff';
+                selected = null;
+            }
+        }
+        
+        function swapCandies(row1, col1, row2, col2) {
+            [board[row1][col1], board[row2][col2]] = [board[row2][col2], board[row1][col1]];
+            renderBoard();
+        }
+        
+        function checkMatches() {
+            let hasMatches = false;
+            
+            for (let row = 0; row < boardSize; row++) {
+                for (let col = 0; col < boardSize - 2; col++) {
+                    if (board[row][col] && 
+                        board[row][col] === board[row][col + 1] && 
+                        board[row][col] === board[row][col + 2]) {
+                        hasMatches = true;
+                    }
+                }
+            }
+            
+            for (let col = 0; col < boardSize; col++) {
+                for (let row = 0; row < boardSize - 2; row++) {
+                    if (board[row][col] && 
+                        board[row][col] === board[row + 1][col] && 
+                        board[row][col] === board[row + 2][col]) {
+                        hasMatches = true;
+                    }
+                }
+            }
+            
+            return hasMatches;
+        }
+        
+        function removeMatches() {
+            const matches = new Set();
+            
+            for (let row = 0; row < boardSize; row++) {
+                for (let col = 0; col < boardSize - 2; col++) {
+                    if (board[row][col] && 
+                        board[row][col] === board[row][col + 1] && 
+                        board[row][col] === board[row][col + 2]) {
+                        matches.add(`${row},${col}`);
+                        matches.add(`${row},${col + 1}`);
+                        matches.add(`${row},${col + 2}`);
+                    }
+                }
+            }
+            
+            for (let col = 0; col < boardSize; col++) {
+                for (let row = 0; row < boardSize - 2; row++) {
+                    if (board[row][col] && 
+                        board[row][col] === board[row + 1][col] && 
+                        board[row][col] === board[row + 2][col]) {
+                        matches.add(`${row},${col}`);
+                        matches.add(`${row + 1},${col}`);
+                        matches.add(`${row + 2},${col}`);
+                    }
+                }
+            }
+            
+            matches.forEach(match => {
+                const [row, col] = match.split(',').map(Number);
+                board[row][col] = '';
+                score += 10;
+            });
+            
+            updateScore();
+            
+            const candyElements = document.querySelectorAll('.candy');
+            candyElements.forEach(el => {
+                const row = parseInt(el.dataset.row);
+                const col = parseInt(el.dataset.col);
+                if (matches.has(`${row},${col}`)) {
+                    el.classList.add('match');
+                }
+            });
+        }
+        
+        function fillBoard() {
+            // 标记哪些位置需要下落动画
+            const fallPositions = new Set();
+            
+            for (let col = 0; col < boardSize; col++) {
+                let emptyRow = boardSize - 1;
+                
+                for (let row = boardSize - 1; row >= 0; row--) {
+                    if (board[row][col] !== '') {
+                        if (row !== emptyRow) {
+                            board[emptyRow][col] = board[row][col];
+                            board[row][col] = '';
+                            fallPositions.add(`${emptyRow},${col}`);
+                        }
+                        emptyRow--;
+                    }
+                }
+                
+                for (let row = emptyRow; row >= 0; row--) {
+                    board[row][col] = getRandomCandy();
+                    fallPositions.add(`${row},${col}`);
+                }
+            }
+            
+            renderBoardWithFallAnimation(fallPositions);
+            
+            if (checkMatches()) {
+                setTimeout(() => {
+                    removeMatches();
+                    fillBoard();
+                }, 500);
+            }
+        }
+        
+        function renderBoardWithFallAnimation(fallPositions) {
+            const gameBoard = document.getElementById('game-board');
+            gameBoard.innerHTML = '';
+            
+            for (let row = 0; row < boardSize; row++) {
+                for (let col = 0; col < boardSize; col++) {
+                    const candyElement = document.createElement('div');
+                    candyElement.className = 'candy';
+                    candyElement.textContent = board[row][col];
+                    candyElement.dataset.row = row;
+                    candyElement.dataset.col = col;
+                    candyElement.addEventListener('click', handleCandyClick);
+                    
+                    if (fallPositions && fallPositions.has(`${row},${col}`)) {
+                        candyElement.classList.add('fall');
+                    }
+                    
+                    gameBoard.appendChild(candyElement);
+                }
+            }
+        }
+        
+        function updateScore() {
+            document.getElementById('score').textContent = `分数: ${score}`;
+        }
+        
+        document.getElementById('restart').addEventListener('click', () => {
+            if (isTimedMode) {
+                startTimer();
+            }
+            initializeBoard();
+            document.getElementById('time').classList.remove('timer-low');
+        });
+    </script>
+</body>
+</html>
